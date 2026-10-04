@@ -1,0 +1,391 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 848 420"
+     class="ill" data-ill="keyboard" role="img" aria-labelledby="t">
+  <title id="t">Compact mechanical keyboard with display and knobs</title>
+  <style>
+    .ill { --ill-ink:#231f20; --ill-paper:#ecebe6; --ill-accent:#e2521f; background:var(--ill-paper); }
+    .ill * { vector-effect: non-scaling-stroke; }
+    .ill [data-part] { transform-box: fill-box; }
+    .ill .s { fill: none; stroke: var(--ill-ink); stroke-width: 2;
+              stroke-linecap: round; stroke-linejoin: round; }
+    .ill .o { fill: var(--ill-paper); }
+    .ill .f { fill: var(--ill-accent); }
+    .ill .i { fill: var(--ill-ink); }
+  </style>
+
+  <!-- back to front: cable + switch (tucked under the case), case, plate, keys, display, knobs -->
+  <g id="cable" data-part="cable" style="transform-origin: 50% 100%">
+    <rect class="s f" x="756" y="-4" width="8" height="36" rx="2" pathLength="1" />
+    <rect class="s i" x="748" y="28" width="24" height="44" rx="3" pathLength="1" />
+  </g>
+
+  <g id="switch" data-part="switch" style="transform-origin: 50% 100%">
+    <rect class="s f" x="78" y="60" width="12" height="12" rx="2" pathLength="1" />
+  </g>
+
+  <g id="case" data-part="case" style="transform-origin: 50% 50%">
+    <rect class="s o" x="30" y="68" width="788" height="312" rx="14" pathLength="1" />
+  </g>
+
+  <g id="plate" data-part="plate" style="transform-origin: 50% 50%">
+    <path class="s i" d="M34 74 H766 V314 H814 V374 H34 Z" pathLength="1" />
+  </g>
+
+  <g id="keys" data-part="keys" style="transform-origin: 50% 100%">
+      <g id="keys-row-0" data-part="keys-row-0" data-stagger="" style="transform-origin: 50% 100%">
+        <g data-i="0" data-key="esc">
+          <rect class="s f" x="43" y="83" width="66" height="42" rx="5" pathLength="1" />
+          <rect class="s f" x="49" y="87" width="54" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="1" data-key="f1">
+          <rect class="s o" x="115" y="83" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="121" y="87" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="2" data-key="f2">
+          <rect class="s o" x="163" y="83" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="169" y="87" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="3" data-key="f3">
+          <rect class="s o" x="211" y="83" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="217" y="87" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="4" data-key="f4">
+          <rect class="s o" x="259" y="83" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="265" y="87" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="5" data-key="f5">
+          <rect class="s o" x="307" y="83" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="313" y="87" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="6" data-key="f6">
+          <rect class="s o" x="355" y="83" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="361" y="87" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="7" data-key="f7">
+          <rect class="s o" x="403" y="83" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="409" y="87" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="8" data-key="f8">
+          <rect class="s o" x="451" y="83" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="457" y="87" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="9" data-key="f9">
+          <rect class="s o" x="499" y="83" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="505" y="87" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="10" data-key="f10">
+          <rect class="s o" x="547" y="83" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="553" y="87" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="11" data-key="f11">
+          <rect class="s o" x="595" y="83" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="601" y="87" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="12" data-key="f12">
+          <rect class="s o" x="643" y="83" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="649" y="87" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="13" data-key="del">
+          <rect class="s o" x="691" y="83" width="66" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="697" y="87" width="54" height="28" rx="3" pathLength="1" />
+        </g>
+      </g>
+
+      <g id="keys-row-1" data-part="keys-row-1" data-stagger="" style="transform-origin: 50% 100%">
+        <g data-i="0" data-key="section">
+          <rect class="s o" x="43" y="131" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="49" y="135" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="1" data-key="1">
+          <rect class="s o" x="91" y="131" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="97" y="135" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="2" data-key="2">
+          <rect class="s o" x="139" y="131" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="145" y="135" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="3" data-key="3">
+          <rect class="s o" x="187" y="131" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="193" y="135" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="4" data-key="4">
+          <rect class="s o" x="235" y="131" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="241" y="135" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="5" data-key="5">
+          <rect class="s o" x="283" y="131" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="289" y="135" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="6" data-key="6">
+          <rect class="s o" x="331" y="131" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="337" y="135" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="7" data-key="7">
+          <rect class="s o" x="379" y="131" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="385" y="135" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="8" data-key="8">
+          <rect class="s o" x="427" y="131" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="433" y="135" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="9" data-key="9">
+          <rect class="s o" x="475" y="131" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="481" y="135" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="10" data-key="0">
+          <rect class="s o" x="523" y="131" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="529" y="135" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="11" data-key="minus">
+          <rect class="s o" x="571" y="131" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="577" y="135" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="12" data-key="equal">
+          <rect class="s o" x="619" y="131" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="625" y="135" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="13" data-key="backspace">
+          <rect class="s o" x="667" y="131" width="90" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="673" y="135" width="78" height="28" rx="3" pathLength="1" />
+        </g>
+      </g>
+
+      <g id="keys-row-2" data-part="keys-row-2" data-stagger="" style="transform-origin: 50% 100%">
+        <g data-i="0" data-key="tab">
+          <rect class="s o" x="43" y="179" width="66" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="49" y="183" width="54" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="1" data-key="q">
+          <rect class="s o" x="115" y="179" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="121" y="183" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="2" data-key="w">
+          <rect class="s o" x="163" y="179" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="169" y="183" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="3" data-key="e">
+          <rect class="s o" x="211" y="179" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="217" y="183" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="4" data-key="r">
+          <rect class="s o" x="259" y="179" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="265" y="183" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="5" data-key="t">
+          <rect class="s o" x="307" y="179" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="313" y="183" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="6" data-key="y">
+          <rect class="s o" x="355" y="179" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="361" y="183" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="7" data-key="u">
+          <rect class="s o" x="403" y="179" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="409" y="183" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="8" data-key="i">
+          <rect class="s o" x="451" y="179" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="457" y="183" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="9" data-key="o">
+          <rect class="s o" x="499" y="179" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="505" y="183" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="10" data-key="p">
+          <rect class="s o" x="547" y="179" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="553" y="183" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="11" data-key="lbracket">
+          <rect class="s o" x="595" y="179" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="601" y="183" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="12" data-key="rbracket">
+          <rect class="s o" x="643" y="179" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="649" y="183" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="13" data-key="enter">
+          <path class="s o" d="M691 179 H757 V269 H703 V221 H691 Z" pathLength="1" />
+          <path class="s o" d="M697 183 H751 V255 H709 V215 H697 Z" pathLength="1" />
+        </g>
+      </g>
+
+      <g id="keys-row-3" data-part="keys-row-3" data-stagger="" style="transform-origin: 50% 100%">
+        <g data-i="0" data-key="caps">
+          <rect class="s o" x="43" y="227" width="78" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="49" y="231" width="66" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="1" data-key="a">
+          <rect class="s o" x="127" y="227" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="133" y="231" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="2" data-key="s">
+          <rect class="s o" x="175" y="227" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="181" y="231" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="3" data-key="d">
+          <rect class="s o" x="223" y="227" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="229" y="231" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="4" data-key="f">
+          <rect class="s o" x="271" y="227" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="277" y="231" width="30" height="28" rx="3" pathLength="1" />
+          <line class="s" x1="287" y1="254" x2="297" y2="254" pathLength="1" />
+        </g>
+        <g data-i="5" data-key="g">
+          <rect class="s o" x="319" y="227" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="325" y="231" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="6" data-key="h">
+          <rect class="s o" x="367" y="227" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="373" y="231" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="7" data-key="j">
+          <rect class="s o" x="415" y="227" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="421" y="231" width="30" height="28" rx="3" pathLength="1" />
+          <line class="s" x1="431" y1="254" x2="441" y2="254" pathLength="1" />
+        </g>
+        <g data-i="8" data-key="k">
+          <rect class="s o" x="463" y="227" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="469" y="231" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="9" data-key="l">
+          <rect class="s o" x="511" y="227" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="517" y="231" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="10" data-key="semicolon">
+          <rect class="s o" x="559" y="227" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="565" y="231" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="11" data-key="quote">
+          <rect class="s o" x="607" y="227" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="613" y="231" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="12" data-key="backslash">
+          <rect class="s o" x="655" y="227" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="661" y="231" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+      </g>
+
+      <g id="keys-row-4" data-part="keys-row-4" data-stagger="" style="transform-origin: 50% 100%">
+        <g data-i="0" data-key="shift-left">
+          <rect class="s o" x="43" y="275" width="54" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="49" y="279" width="42" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="1" data-key="backtick">
+          <rect class="s o" x="103" y="275" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="109" y="279" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="2" data-key="z">
+          <rect class="s o" x="151" y="275" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="157" y="279" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="3" data-key="x">
+          <rect class="s o" x="199" y="275" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="205" y="279" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="4" data-key="c">
+          <rect class="s o" x="247" y="275" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="253" y="279" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="5" data-key="v">
+          <rect class="s o" x="295" y="275" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="301" y="279" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="6" data-key="b">
+          <rect class="s o" x="343" y="275" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="349" y="279" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="7" data-key="n">
+          <rect class="s o" x="391" y="275" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="397" y="279" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="8" data-key="m">
+          <rect class="s o" x="439" y="275" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="445" y="279" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="9" data-key="comma">
+          <rect class="s o" x="487" y="275" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="493" y="279" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="10" data-key="period">
+          <rect class="s o" x="535" y="275" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="541" y="279" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="11" data-key="slash">
+          <rect class="s o" x="583" y="275" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="589" y="279" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="12" data-key="shift-right">
+          <rect class="s o" x="631" y="275" width="78" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="637" y="279" width="66" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="13" data-key="up">
+          <rect class="s f" x="715" y="275" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s f" x="721" y="279" width="30" height="28" rx="3" pathLength="1" />
+          <line class="s" x1="731" y1="302" x2="741" y2="302" pathLength="1" />
+        </g>
+      </g>
+
+      <g id="keys-row-5" data-part="keys-row-5" data-stagger="" style="transform-origin: 50% 100%">
+        <g data-i="0" data-key="ctrl">
+          <rect class="s o" x="43" y="323" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="49" y="327" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="1" data-key="fn-left">
+          <rect class="s o" x="91" y="323" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="97" y="327" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="2" data-key="alt-left">
+          <rect class="s o" x="139" y="323" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="145" y="327" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="3" data-key="cmd">
+          <rect class="s o" x="187" y="323" width="54" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="193" y="327" width="42" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="4" data-key="space">
+          <rect class="s o" x="247" y="323" width="294" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="253" y="327" width="282" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="5" data-key="alt-right">
+          <rect class="s o" x="547" y="323" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="553" y="327" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="6" data-key="fn-right">
+          <rect class="s o" x="595" y="323" width="66" height="42" rx="5" pathLength="1" />
+          <rect class="s o" x="601" y="327" width="54" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="7" data-key="left">
+          <rect class="s f" x="667" y="323" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s f" x="673" y="327" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="8" data-key="down">
+          <rect class="s f" x="715" y="323" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s f" x="721" y="327" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+        <g data-i="9" data-key="right">
+          <rect class="s f" x="763" y="323" width="42" height="42" rx="5" pathLength="1" />
+          <rect class="s f" x="769" y="327" width="30" height="28" rx="3" pathLength="1" />
+        </g>
+      </g>
+  </g>
+
+  <g id="display" data-part="display" style="transform-origin: 50% 50%">
+    <rect class="s o" x="772" y="176" width="32" height="128" rx="8" pathLength="1" />
+    <rect class="s o" x="776" y="180" width="24" height="120" rx="5" pathLength="1" />
+    <g id="display-clock" data-part="display-clock" style="transform-origin: 50% 50%">
+      <rect class="s i" x="779" y="183" width="18" height="28" rx="3" pathLength="1" />
+    </g>
+  </g>
+
+  <g id="knob-top" data-part="knob-top" style="transform-origin: 50% 50%">
+    <circle class="s o" cx="788" cy="100" r="14" pathLength="1" />
+    <circle class="s o" cx="788" cy="100" r="9" pathLength="1" />
+    <line class="s" x1="788" y1="93" x2="788" y2="97" pathLength="1" />
+  </g>
+
+  <g id="knob-bottom" data-part="knob-bottom" style="transform-origin: 50% 50%">
+    <circle class="s o" cx="788" cy="136" r="14" pathLength="1" />
+    <circle class="s o" cx="788" cy="136" r="9" pathLength="1" />
+    <line class="s" x1="788" y1="129" x2="788" y2="133" pathLength="1" />
+  </g>
+</svg>

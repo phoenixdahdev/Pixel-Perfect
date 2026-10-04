@@ -1,15 +1,7 @@
-import IglooHero from "./igloo-hero/igloo-hero";
-import JourneyRoom from "./journey-room/journey-room";
+import StickerMaker from "./sticker-maker/sticker-maker";
 
 const Page = () => {
-  return (
-    <>
-      <div className="h-screen w-full">
-        <JourneyRoom />
-      </div>
-      <IglooHero />
-    </>
-  );
+  return <StickerMaker />;
 };
 
 export default Page;
