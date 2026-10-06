@@ -51,6 +51,27 @@ const ILLUSTRATIONS = [
       { name: "drawer", ids: ["drawer"] },
     ],
   },
+  {
+    name: "computer",
+    file: "computer-iso.svg",
+    layers: [
+      { name: "back", ids: ["plant", "case"], live: true },
+      { name: "floppy", ids: ["floppy"] },
+      { name: "stand", ids: ["stand"] },
+      { name: "head", ids: ["head"] },
+      { name: "front", ids: ["cable", "mouse"], live: true },
+    ],
+  },
+  {
+    name: "tower",
+    file: "tower-iso.svg",
+    layers: [
+      { name: "ground", ids: ["rock", "island", "grove", "cauldron"] },
+      { name: "floors", ids: ["floor-base", "floor-mid", "floor-top", "floor-hat"] },
+      { name: "front", ids: ["mushrooms", "stones"] },
+      { name: "hits", ids: ["hits"], live: true },
+    ],
+  },
 
 ];
 

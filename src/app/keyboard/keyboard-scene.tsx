@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { LABEL, LAYERS } from "./art/keyboard-svg";
-import { Figure, IllArt, isTypingTarget, useActiveSection } from "./ill-art";
+import { Figure, FooterButton, IllArt, finishIntro, liveKit, skipIntro, useScene } from "./ill-art";
 
 gsap.registerPlugin(useGSAP);
 
@@ -16,12 +16,8 @@ const codeFor = (ch: string) =>
   ch === " " ? "Space" : /[a-z]/.test(ch) ? `Key${ch.toUpperCase()}` : /\d/.test(ch) ? `Digit${ch}` : null;
 
 export function KeyboardScene() {
-  const root = useRef<HTMLDivElement>(null);
-  const section = useRef<HTMLElement>(null);
-  const active = useActiveSection(section);
-  const intro = useRef<gsap.core.Timeline | null>(null);
-  const introDone = useRef(false);
-  const lastUser = useRef(0);
+  const scene = useScene({ playOnView: false }); // first on the page: the intro plays on load
+  const { rootRef, sectionRef, introRef, introDoneRef } = scene;
 
   // ── Intro, built for 60fps:
   //    • whole-stage entrance, cable slide and controls drop animate layer <div>s → compositor only
@@ -30,39 +26,27 @@ export function KeyboardScene() {
   //    • no stroke draw-on: half-drawn outlines read as broken lines
   useGSAP(
     () => {
-      const el = root.current;
-      if (!el) return;
+      const el = rootRef.current;
+      if (!el || skipIntro(el, scene)) return;
       const layer = (name: string) => el.querySelector<HTMLElement>(`[data-layer="${name}"]`);
-
-      if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        gsap.set(el, { autoAlpha: 1 });
-        introDone.current = true;
-        return;
-      }
-
       const keys = gsap.utils
         .toArray<SVGGElement>(".key", el)
         .sort((a, b) => Number(a.dataset.cx) - Number(b.dataset.cx));
       const slots = gsap.utils.toArray<SVGGElement>(".knob-slot", el);
-      const layers = [layer("cable"), layer("controls")].filter(Boolean) as HTMLElement[];
       const spin = { a: -405 };
 
       gsap.set(el, { autoAlpha: 1 });
       slots.forEach((s) => (s.style.transition = "none"));
 
-      intro.current = gsap
+      introRef.current = gsap
         .timeline({
           // start after the site template's 0.25s blur-in (src/app/template.tsx): a full-page filter
           // running under the intro doubles the per-frame cost
           delay: 0.3,
           defaults: { ease: "expo.out" },
           onComplete: () => {
-            // Hand transforms back to CSS so hover/typing (.key.down) can take over.
-            keys.forEach((k) => k.removeAttribute("transform"));
-            gsap.set(keys, { clearProps: "transform,visibility" });
-            gsap.set([el, ...layers], { clearProps: "transform,opacity" });
             slots.forEach((s) => (s.style.transition = ""));
-            introDone.current = true;
+            finishIntro(scene, keys, [el, layer("cable"), layer("controls")]);
           },
         })
         .from(el, { y: 24, opacity: 0, duration: 0.9 }, 0)
@@ -75,62 +59,49 @@ export function KeyboardScene() {
         .from(layer("cable"), { xPercent: 12, yPercent: -12, opacity: 0, duration: 1 }, 1.1)
         .to(keys, { y: 3.4, duration: 0.1, ease: "power1.out", yoyo: true, repeat: 1, stagger: { amount: 0.7 } }, 1.9);
     },
-    { scope: root },
+    { scope: rootRef },
   );
 
-  // ── Live interactions: hover press, real typing, knob wheel, clock, idle ghost typing.
+  // ── Live: hover press, real typing, knob wheel, clock, idle ghost typing.
   useEffect(() => {
-    const el = root.current;
+    const el = rootRef.current;
     if (!el) return;
-    const svg = el; // the layer stack: keys live in two layers, knobs + clock in another
+    const kit = liveKit(el, scene, IDLE_MS);
 
     const byCode = new Map<string, SVGGElement>();
-    svg.querySelectorAll<SVGGElement>(".key[data-code]").forEach((k) => byCode.set(k.dataset.code!, k));
-    const press = (code: string, on: boolean) => byCode.get(code)?.classList.toggle("down", on);
-    const touch = () => (lastUser.current = performance.now());
+    el.querySelectorAll<SVGGElement>(".key[data-code]").forEach((k) => byCode.set(k.dataset.code!, k));
+    const hold = (code: string, on: boolean) => byCode.get(code)?.classList.toggle("down", on);
 
-    const onOver = (e: PointerEvent) => {
-      if (!introDone.current) return;
-      const k = (e.target as Element).closest(".key");
-      if (k) { k.classList.add("down"); touch(); }
-    };
-    const onOut = (e: PointerEvent) => {
-      const k = (e.target as Element).closest(".key");
-      if (k && !k.contains(e.relatedTarget as Node | null)) k.classList.remove("down");
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!active.current || isTypingTarget(e.target) || !byCode.has(e.code)) return;
-      touch();
-      press(e.code, true);
+    kit.onKey("keydown", (e) => {
+      if (!byCode.has(e.code)) return;
+      kit.touch();
+      hold(e.code, true);
       if (/^(Space|Arrow)/.test(e.code)) e.preventDefault();
-    };
-    const onKeyUp = (e: KeyboardEvent) => press(e.code, false);
-    const releaseAll = () => svg.querySelectorAll(".key.down").forEach((k) => k.classList.remove("down"));
-
-    svg.addEventListener("pointerover", onOver);
-    svg.addEventListener("pointerout", onOut);
-    addEventListener("keydown", onKeyDown);
-    addEventListener("keyup", onKeyUp);
-    addEventListener("blur", releaseAll);
+    });
+    kit.onKey("keyup", (e) => hold(e.code, false));
+    kit.on(window, "blur", () => el.querySelectorAll(".key.down").forEach((k) => k.classList.remove("down")));
 
     // Knobs: the wheel turns the slot inside the knob's top plane, so it stays isometric.
-    const knobCleanups: (() => void)[] = [];
-    svg.querySelectorAll<SVGGElement>(".knob-slot").forEach((slot) => {
+    el.querySelectorAll<SVGGElement>(".knob-slot").forEach((slot) => {
       let a = -45;
-      const knob = svg.querySelector(`#${slot.dataset.knob}`);
-      const onWheel = (e: Event) => {
-        e.preventDefault();
-        touch();
-        a += Math.sign((e as WheelEvent).deltaY) * 15;
-        slot.style.transform = `rotate(${a}deg)`;
-      };
-      knob?.addEventListener("wheel", onWheel, { passive: false });
-      knobCleanups.push(() => knob?.removeEventListener("wheel", onWheel));
+      const knob = el.querySelector(`#${slot.dataset.knob}`);
+      if (!knob) return;
+      kit.on(
+        knob,
+        "wheel",
+        (e) => {
+          e.preventDefault();
+          kit.touch();
+          a += Math.sign(e.deltaY) * 15;
+          slot.style.transform = `rotate(${a}deg)`;
+        },
+        { passive: false },
+      );
     });
 
     // The display clock shows the real time.
-    const time = svg.querySelector(".clock-time");
-    const date = svg.querySelector(".clock-date");
+    const time = el.querySelector(".clock-time");
+    const date = el.querySelector(".clock-date");
     const tick = () => {
       const now = new Date();
       if (time) time.textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
@@ -140,58 +111,35 @@ export function KeyboardScene() {
     const clock = setInterval(tick, 10_000);
 
     // Idle ghost: types a phrase whenever nobody has touched the keyboard for a while.
-    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let alive = true;
-    let timer = 0;
-    const sleep = (ms: number) => new Promise<void>((r) => (timer = window.setTimeout(r, ms)));
-    const idle = () => performance.now() - lastUser.current > IDLE_MS;
-    (async () => {
-      let p = 0;
-      while (alive) {
-        await sleep(1500);
-        if (!alive || reduce || !introDone.current || !active.current || !idle()) continue;
-        for (const ch of PHRASES[p++ % PHRASES.length]) {
-          if (!alive || !idle()) break;
-          const code = codeFor(ch);
-          if (code) press(code, true);
-          await sleep(60 + Math.random() * 40);
-          if (code) press(code, false);
-          await sleep(70 + Math.random() * 110);
-        }
-        await sleep(2200);
+    let p = 0;
+    kit.ghost(async () => {
+      for (const ch of PHRASES[p++ % PHRASES.length]) {
+        if (!kit.idle()) break;
+        const code = codeFor(ch);
+        if (code) hold(code, true);
+        await kit.sleep(60 + Math.random() * 40);
+        if (code) hold(code, false);
+        await kit.sleep(70 + Math.random() * 110);
       }
-    })();
+      await kit.sleep(2200);
+    });
 
     return () => {
-      alive = false;
-      clearTimeout(timer);
+      kit.dispose();
       clearInterval(clock);
-      svg.removeEventListener("pointerover", onOver);
-      svg.removeEventListener("pointerout", onOut);
-      removeEventListener("keydown", onKeyDown);
-      removeEventListener("keyup", onKeyUp);
-      removeEventListener("blur", releaseAll);
-      knobCleanups.forEach((f) => f());
     };
-  }, [active]);
+  }, [rootRef, scene]);
 
   const replay = () => {
-    if (!intro.current) return;
-    root.current?.querySelectorAll(".key.down").forEach((k) => k.classList.remove("down"));
-    introDone.current = false;
-    intro.current.restart();
+    if (!introRef.current) return;
+    rootRef.current?.querySelectorAll(".key.down").forEach((k) => k.classList.remove("down"));
+    introDoneRef.current = false;
+    introRef.current.restart();
   };
 
   return (
-    <Figure
-      sectionRef={section}
-      footer={
-        <button type="button" onClick={replay} className="uppercase transition-colors hover:text-[#d0d6e0]">
-          Replay
-        </button>
-      }
-    >
-      <IllArt hostRef={root} label={LABEL} layers={LAYERS} className="w-[min(94vw,1100px)]" />
+    <Figure sectionRef={sectionRef} footer={<FooterButton onClick={replay}>Replay</FooterButton>}>
+      <IllArt hostRef={rootRef} label={LABEL} layers={LAYERS} className="w-[min(94vw,1100px)]" />
     </Figure>
   );
 }

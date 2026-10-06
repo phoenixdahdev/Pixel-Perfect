@@ -1,6 +1,15 @@
 "use client";
 
-import { memo, useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { memo, useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react";
+import gsap from "gsap";
+
+// Shared pieces for the illustration scenes: the SVG host, the section frame, the scene refs, and the
+// live-interaction kit (hover press, timers, idle ghost) every scene wires the same way.
+
+export const prefersReducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const isTypingTarget = (t: EventTarget | null) =>
+  t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable);
 
 // The SVG host must never re-render: React would re-inject the markup and orphan every node that GSAP and
 // the listeners hold. memo + stable props keep it mounted once.
@@ -35,49 +44,8 @@ export const IllArt = memo(function IllArt({
   );
 });
 
-/**
- * Tracks whether a section is the one being looked at (≥ half of it on screen), so only that section answers
- * the real keyboard and runs its idle ghost. `onEnter` fires once, the first time it comes into view (intros).
- */
-export function useActiveSection(ref: RefObject<HTMLElement | null>, onEnter?: () => void) {
-  const active = useRef(false);
-  const enter = useRef(onEnter);
-  useEffect(() => {
-    enter.current = onEnter;
-  });
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    let entered = false;
-    const io = new IntersectionObserver(
-      ([e]) => {
-        active.current = e.intersectionRatio >= 0.5 || (e.isIntersecting && e.intersectionRect.height >= innerHeight * 0.5);
-        if (e.isIntersecting && e.intersectionRatio >= 0.25 && !entered) {
-          entered = true;
-          enter.current?.();
-        }
-      },
-      { threshold: [0, 0.25, 0.5, 0.75, 1] },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [ref]);
-  return active;
-}
-
-export const isTypingTarget = (t: EventTarget | null) =>
-  t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable);
-
-/** The page frame every figure sits in: the art, and an optional control row under it. */
-export function Figure({
-  sectionRef,
-  children,
-  footer,
-}: {
-  sectionRef: RefObject<HTMLElement | null>;
-  children: ReactNode;
-  footer?: ReactNode;
-}) {
+/** The page frame every figure sits in: the art, and an optional control under it. */
+export function Figure({ sectionRef, children, footer }: { sectionRef: RefObject<HTMLElement | null>; children: ReactNode; footer?: ReactNode }) {
   return (
     <section
       ref={sectionRef}
@@ -89,8 +57,137 @@ export function Figure({
   );
 }
 
-/** Convex hull of screen points (monotone chain), for clip paths of parts that slide out of a body. */
-export function hull(points: [number, number][]) {
+export function FooterButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} className="uppercase transition-colors hover:text-[#d0d6e0]">
+      {children}
+    </button>
+  );
+}
+
+/**
+ * The refs every scene needs. `active` is true while the section fills at least half the screen: only that
+ * section answers the real keyboard and runs its idle ghost. With `playOnView`, the intro timeline (built
+ * paused) plays the first time the section scrolls into view.
+ */
+export function useScene({ playOnView }: { playOnView: boolean }) {
+  const root = useRef<HTMLDivElement>(null);
+  const section = useRef<HTMLElement>(null);
+  const intro = useRef<gsap.core.Timeline | null>(null);
+  const introDone = useRef(false);
+  const lastUser = useRef(0);
+  const active = useRef(false);
+
+  useEffect(() => {
+    const el = section.current;
+    if (!el) return;
+    let entered = false;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        active.current = e.intersectionRatio >= 0.5 || (e.isIntersecting && e.intersectionRect.height >= innerHeight * 0.5);
+        if (playOnView && !entered && e.isIntersecting && e.intersectionRatio >= 0.25) {
+          entered = true;
+          intro.current?.play();
+        }
+      },
+      { threshold: [0, 0.25, 0.5, 0.75, 1] },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [playOnView]);
+
+  // one stable object, so scenes can list it as an effect dependency
+  return useMemo(() => ({ rootRef: root, sectionRef: section, introRef: intro, introDoneRef: introDone, lastUserRef: lastUser, activeRef: active }), []);
+}
+export type Scene = ReturnType<typeof useScene>;
+
+/** Reduced motion: show the art as is and skip the intro. Returns true when it did. */
+export function skipIntro(el: HTMLElement, scene: Scene) {
+  if (!prefersReducedMotion()) return false;
+  gsap.set(el, { autoAlpha: 1 });
+  scene.introDoneRef.current = true;
+  return true;
+}
+
+/**
+ * End of an intro: hand the parts' transforms back to CSS (so `.key.down` works) and clear the named props
+ * on the stage and layers. The idle ghost then waits a full idle period before it starts.
+ */
+export function finishIntro(scene: Scene, parts: SVGElement[], wholes: (HTMLElement | null)[]) {
+  parts.forEach((p) => p.removeAttribute("transform"));
+  gsap.set(parts, { clearProps: "transform,visibility" });
+  gsap.set(wholes.filter(Boolean), { clearProps: "transform,opacity" });
+  scene.introDoneRef.current = true;
+  scene.lastUserRef.current = performance.now();
+}
+
+/**
+ * Live wiring shared by every scene, bound to the layer stack `el`: hover presses `.key` parts, `later`
+ * timers, `press` (a short tap), `onKey` (the real keyboard, only while this section is in view), and
+ * `ghost(run)`, a loop that runs `run` whenever the section is in view and idle for `idleMs`.
+ * `dispose()` removes all of it.
+ */
+export function liveKit(el: HTMLElement, scene: Scene, idleMs: number) {
+  const reduce = prefersReducedMotion();
+  const timers = new Set<number>();
+  const cleanups: (() => void)[] = [];
+  let alive = true;
+
+  const later = (fn: () => void, ms: number) => {
+    const t = window.setTimeout(() => {
+      timers.delete(t);
+      fn();
+    }, ms);
+    timers.add(t);
+  };
+  const sleep = (ms: number) => new Promise<void>((r) => later(r, ms));
+  const touch = () => (scene.lastUserRef.current = performance.now());
+  const idle = () => alive && performance.now() - scene.lastUserRef.current > idleMs;
+  const press = (k: Element, ms = 120) => {
+    k.classList.add("down");
+    later(() => k.classList.remove("down"), ms);
+  };
+  const on = <K extends keyof WindowEventMap>(target: EventTarget, type: K, fn: (e: WindowEventMap[K]) => void, opts?: AddEventListenerOptions) => {
+    target.addEventListener(type, fn as EventListener, opts);
+    cleanups.push(() => target.removeEventListener(type, fn as EventListener));
+  };
+
+  on(el, "pointerover", (e) => {
+    const k = (e.target as Element).closest(".key");
+    if (!scene.introDoneRef.current || !k) return;
+    k.classList.add("down");
+    touch();
+  });
+  on(el, "pointerout", (e) => {
+    const k = (e.target as Element).closest(".key");
+    if (k && !k.contains(e.relatedTarget as Node | null)) k.classList.remove("down");
+  });
+
+  const onKey = (type: "keydown" | "keyup", fn: (e: KeyboardEvent) => void) =>
+    on(window, type, (e) => {
+      if (scene.activeRef.current && scene.introDoneRef.current && !isTypingTarget(e.target)) fn(e);
+    });
+
+  const ghost = (run: () => Promise<void>) => {
+    (async () => {
+      while (alive) {
+        await sleep(1500);
+        if (!reduce && scene.introDoneRef.current && scene.activeRef.current && idle()) await run();
+      }
+    })();
+  };
+
+  const dispose = () => {
+    alive = false;
+    timers.forEach(clearTimeout);
+    cleanups.forEach((f) => f());
+  };
+
+  return { reduce, later, sleep, touch, idle, press, on, onKey, ghost, dispose };
+}
+
+/** Convex hull of screen points as a closed path (monotone chain): clips for parts that slide out of a body. */
+export function hullPath(points: [number, number][]) {
   const p = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const cross = (o: number[], a: number[], b: number[]) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
   const lo: [number, number][] = [];
@@ -103,7 +200,6 @@ export function hull(points: [number, number][]) {
     while (up.length >= 2 && cross(up.at(-2)!, up.at(-1)!, q) <= 0) up.pop();
     up.push(q);
   }
-  return lo.slice(0, -1).concat(up.slice(0, -1));
+  const hull = lo.slice(0, -1).concat(up.slice(0, -1));
+  return "M" + hull.map((q) => `${q[0].toFixed(2)} ${q[1].toFixed(2)}`).join(" L") + " Z";
 }
-export const hullPath = (pts: [number, number][]) =>
-  "M" + hull(pts).map((q) => `${q[0].toFixed(2)} ${q[1].toFixed(2)}`).join(" L") + " Z";
