@@ -6,7 +6,9 @@
  * knock-out) is built on the CPU in ./make-sticker.ts; the paper feel is a vertex shader on a
  * dense plane, the same technique as the repo's bend-mouse-follower, extended with:
  *  - two cylindrical bends driven by angular velocity (air drag curls the edges as it spins),
- *  - a page-curl peel around a moving fold line, lifted by hovering near an edge,
+ *  - a page-curl peel around a moving fold line: hover an edge to lift it, grab an edge and
+ *    pull to peel it from any direction, let go and it comes off and falls like paper (the
+ *    peel-and-fall mechanism from GetOn's landing page, see stepPeel),
  *  - a small flutter, and a plain white backing on the reverse side.
  */
 
@@ -88,10 +90,13 @@ const vertexShader = /* glsl */ `
     vUv = uv;
     vec3 p = position;
 
-    // Page-curl peel: everything past a fold line rolls over a cylinder of radius R.
+    // Page-curl peel: everything past the fold line curls over a cylinder of radius R up to
+    // LIFT, then runs on straight off the sticker at that angle — a flap pulled up by its edge,
+    // leaning back over the rest (GetOn's sticker-peel curl).
+    const float LIFT = 2.4;
     vec2 dir = vec2(cos(uPeelAngle), sin(uPeelAngle));
     float extent = abs(dir.x) * uHalfSize.x + abs(dir.y) * uHalfSize.y;
-    float fold = extent - uPeel * extent * 1.8;
+    float fold = extent - uPeel * extent * 2.0;
     float s = dot(p.xy, dir);
     float dist = s - fold;
     if (dist > 0.0) {
@@ -99,12 +104,13 @@ const vertexShader = /* glsl */ `
       float a = dist / R;
       float ns;
       float lift;
-      if (a < 3.14159265) {
+      if (a < LIFT) {
         ns = fold + sin(a) * R;
         lift = (1.0 - cos(a)) * R;
       } else {
-        ns = fold - (dist - 3.14159265 * R);
-        lift = 2.0 * R;
+        float on = dist - LIFT * R;
+        ns = fold + sin(LIFT) * R + cos(LIFT) * on;
+        lift = (1.0 - cos(LIFT)) * R + sin(LIFT) * on;
       }
       p.xy += dir * (ns - s);
       p.z += lift;
@@ -187,7 +193,31 @@ type Sim = {
   animPeel: number;
   animPeelAngle: number;
   kick: number;
+  idleT: number; // the idle float's clock: paused while the sticker is grabbed or falling
+  // Grab-to-peel and the fall (see stepPeel).
+  phase: Phase;
+  phaseT: number;
+  press: "none" | "pending" | "held";
+  released: boolean;
+  autoPeel: boolean;
+  grabStart: THREE.Vector2; // pointer on the sticker at grab, its own units
+  grabPlane: THREE.Plane;
+  frameInv: THREE.Matrix4; // world → the sticker's frame, frozen at grab
+  restPos: THREE.Vector3;
+  restQuat: THREE.Quaternion;
+  side: 1 | -1; // which way it falls away: towards the lifted edge
+  peelFrom: number; // the curl it let go with
+  fall: {
+    x: number; y: number; z: number; // px off its rest place, y up
+    vx: number; vy: number; vz: number;
+    rx: number; ry: number; rz: number;
+    tip: number;
+    bend: [number, number];
+    flutter: number;
+  };
 };
+
+type Phase = "rest" | "peeling" | "unpeel" | "auto" | "lift" | "fall" | "gone";
 
 const createSim = (): Sim => ({
   pointer: new THREE.Vector2(),
@@ -210,7 +240,276 @@ const createSim = (): Sim => ({
   animPeel: 0,
   animPeelAngle: -0.6,
   kick: 0,
+  idleT: 0,
+  phase: "rest",
+  phaseT: 0,
+  press: "none",
+  released: false,
+  autoPeel: false,
+  grabStart: new THREE.Vector2(),
+  grabPlane: new THREE.Plane(),
+  frameInv: new THREE.Matrix4(),
+  restPos: new THREE.Vector3(),
+  restQuat: new THREE.Quaternion(),
+  side: 1,
+  peelFrom: 0,
+  fall: { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, rx: 0, ry: 0, rz: 0, tip: 0, bend: [0, 0], flutter: 0 },
 });
+
+// ---------------------------------------------------------------------------
+// Peel and fall — the mechanism from GetOn's sticker-peel.ts, driven by a grab instead of
+// scroll. Grab near an edge and pull: the fold follows the pull, from any direction. Let go
+// past PEEL_OFF and it lifts off by that edge, then falls like paper: a pop off the surface,
+// gravity against air drag, a side-to-side sway with a rocking tilt, a slow tumble that shows
+// its back, its edges bending in the air and the curl relaxing. Off screen, it slaps back on.
+//
+//   grab (edge zone)      fold tracks the pull; peel ≤ PEEL_MAX
+//   release < PEEL_OFF    unpeels back flat
+//   release ≥ PEEL_OFF    LIFT_MS: rises LIFT_Z px, tipping LIFT_TIP rad by the lifted edge
+//   then                  falls (px, s) until it is below the bottom edge, then slaps back
+// ---------------------------------------------------------------------------
+
+/** Grabs closer to the centre than this (fraction of the extent) spin instead of peel */
+const GRAB_EDGE = 0.4;
+const PEEL_MAX = 0.72;
+const PEEL_OFF = 0.16;
+const PEEL_MS = 950; // the Peel preset's curl, corner to just past the middle
+const PEEL_PEAK = 0.56;
+const LIFT_MS = 300;
+const LIFT_Z = 70;
+const LIFT_TIP = 0.32;
+const PEEL_LEFT = 0.14; // the curl it keeps as it falls
+const SPRING_BACK = 2.2; // per s
+const POP = { x: 60, y: 300, z: 300 };
+const GRAVITY = 2300;
+const DRAG = 1.5; // per s
+const AWAY_DRAG = 3.4;
+const SWAY = { accel: 420, rate: 4.6 };
+const ROCK = { amp: 0.5, rate: 4.6 };
+const TUMBLE = 2.2; // rad/s about its height
+const SPIN = 0.8; // rad/s in its plane
+const GONE_MS = 450; // off screen this long before it slaps back
+
+const easeInOut = (t: number) =>
+  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+const qa = new THREE.Quaternion();
+const qb = new THREE.Quaternion();
+const axisZ = new THREE.Vector3(0, 0, 1);
+const axisY = new THREE.Vector3(0, 1, 0);
+const axisX = new THREE.Vector3(1, 0, 0);
+const tipAxis = new THREE.Vector3();
+const local = new THREE.Vector2();
+
+/** Holds the sticker where it is, so the grab and the fall work in a still frame */
+function freeze(sim: Sim, mesh: THREE.Mesh) {
+  mesh.updateMatrixWorld(true);
+  sim.restPos.copy(mesh.position);
+  sim.restQuat.copy(mesh.quaternion);
+  sim.frameInv.copy(mesh.matrixWorld).invert();
+  normal.set(0, 0, 1).applyQuaternion(mesh.quaternion);
+  sim.grabPlane.setFromNormalAndCoplanarPoint(normal, mesh.position);
+  const f = sim.fall;
+  f.x = f.y = f.z = f.vx = f.vy = f.vz = f.rx = f.ry = f.rz = f.tip = f.flutter = 0;
+  f.bend = [0, 0];
+}
+
+function go(sim: Sim, phase: Phase) {
+  sim.phase = phase;
+  sim.phaseT = 0;
+}
+
+/** The pointer on the frozen sticker, in its own units; false if it misses the plane */
+function pointerLocal(sim: Sim, camera: THREE.Camera) {
+  raycaster.setFromCamera(sim.pointer, camera);
+  if (!raycaster.ray.intersectPlane(sim.grabPlane, hit)) return false;
+  hit.applyMatrix4(sim.frameInv);
+  local.set(hit.x, hit.y);
+  return true;
+}
+
+/**
+ * Runs the grab, peel, lift and fall. Returns true while it owns the sticker (anything but
+ * rest), in which case the idle float and hover peel are skipped this frame.
+ * `pxToWorld` converts the fall's px into world units at the sticker's depth.
+ */
+function stepPeel(
+  sim: Sim,
+  mesh: THREE.Mesh,
+  material: THREE.ShaderMaterial,
+  camera: THREE.Camera,
+  time: number,
+  dt: number,
+  halfSize: THREE.Vector2,
+  pxToWorld: number,
+  viewHeight: number,
+) {
+  dt = Math.min(dt, 0.05); // a long frame (tab switch, hitch) must not fling it off in one step
+  const f = Math.min(dt * 60, 3);
+
+  // A fresh press: near the edge it grabs to peel, anywhere else it spins.
+  if (sim.press === "pending") {
+    sim.press = "held";
+    let grabbed = false;
+    if (sim.phase === "rest") {
+      raycaster.setFromCamera(sim.pointer, camera);
+      normal.set(0, 0, 1).applyQuaternion(mesh.quaternion);
+      plane.setFromNormalAndCoplanarPoint(normal, mesh.position);
+      if (raycaster.ray.intersectPlane(plane, hit)) {
+        mesh.worldToLocal(hit);
+        const angle = Math.atan2(hit.y, hit.x);
+        const extent =
+          Math.abs(Math.cos(angle)) * halfSize.x + Math.abs(Math.sin(angle)) * halfSize.y;
+        const r = Math.hypot(hit.x, hit.y) / extent;
+        if (r > GRAB_EDGE && r < 1.08) {
+          freeze(sim, mesh);
+          sim.grabStart.set(hit.x, hit.y);
+          sim.peelAngle = angle;
+          go(sim, "peeling");
+          grabbed = true;
+        }
+      }
+    }
+    if (!grabbed && sim.phase === "rest") sim.dragging = true;
+  }
+  if (sim.autoPeel) {
+    sim.autoPeel = false;
+    if (sim.phase === "rest") {
+      freeze(sim, mesh);
+      sim.side = 1;
+      sim.peelAngle = Math.atan2(halfSize.y, halfSize.x);
+      sim.peelFrom = sim.peel;
+      go(sim, "auto");
+    }
+  }
+  if (sim.phase === "rest") {
+    sim.released = false;
+    return false;
+  }
+
+  sim.phaseT += dt;
+  const t = sim.phaseT;
+  const fall = sim.fall;
+
+  switch (sim.phase) {
+    case "peeling": {
+      if (pointerLocal(sim, camera)) {
+        const dx = local.x - sim.grabStart.x;
+        const dy = local.y - sim.grabStart.y;
+        // Pulled far enough, the fold turns to face the pull: peel from any direction.
+        if (Math.hypot(dx, dy) > 0.12) {
+          const want = Math.atan2(-dy, -dx);
+          sim.peelAngle +=
+            Math.atan2(Math.sin(want - sim.peelAngle), Math.cos(want - sim.peelAngle)) *
+            Math.min(1, 0.12 * f);
+        }
+        const c = Math.cos(sim.peelAngle);
+        const sn = Math.sin(sim.peelAngle);
+        const extent = Math.abs(c) * halfSize.x + Math.abs(sn) * halfSize.y;
+        const pull = Math.max(0, -(dx * c + dy * sn));
+        const goal = THREE.MathUtils.clamp(0.06 + pull / (2 * extent), 0, PEEL_MAX);
+        sim.peel += (goal - sim.peel) * Math.min(1, 0.35 * f);
+      }
+      fall.flutter = 0.3 + sim.peel * 0.6;
+      if (sim.released) {
+        sim.released = false;
+        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (sim.peel >= PEEL_OFF && !reduce) {
+          sim.side = Math.cos(sim.peelAngle) >= 0 ? 1 : -1;
+          sim.peelFrom = sim.peel;
+          go(sim, "lift");
+        } else go(sim, "unpeel");
+      }
+      break;
+    }
+    case "unpeel": {
+      sim.peel = Math.max(0, sim.peel - dt * 1.4);
+      fall.flutter = Math.max(0, fall.flutter - dt * 3);
+      if (sim.peel === 0) go(sim, "rest");
+      break;
+    }
+    case "auto": {
+      const k = Math.min(1, t / (PEEL_MS / 1000));
+      sim.peel = Math.max(sim.peelFrom, PEEL_PEAK * easeInOut(k));
+      fall.flutter = 0.6 * k;
+      if (k >= 1) {
+        sim.peelFrom = sim.peel;
+        go(sim, "lift");
+      }
+      break;
+    }
+    case "lift": {
+      const k = Math.min(1, t / (LIFT_MS / 1000));
+      const e = 1 - Math.pow(1 - k, 3); // quick, slowing as it clears the surface
+      fall.z = LIFT_Z * e;
+      fall.tip = LIFT_TIP * e;
+      fall.flutter = 0.6 + 0.3 * k;
+      if (k >= 1) {
+        go(sim, "fall");
+        fall.vx = sim.side * POP.x;
+        fall.vy = POP.y;
+        fall.vz = POP.z;
+      }
+      break;
+    }
+    case "fall": {
+      const on = Math.min(1, t * 2.2); // the air takes hold over the first half second
+      sim.peel = PEEL_LEFT + (sim.peelFrom - PEEL_LEFT) * Math.exp(-t * SPRING_BACK);
+      fall.vx += sim.side * SWAY.accel * Math.cos(t * SWAY.rate) * on * dt;
+      fall.vy -= GRAVITY * dt;
+      fall.vx *= Math.exp(-DRAG * dt);
+      fall.vy *= Math.exp(-DRAG * dt);
+      fall.vz *= Math.exp(-AWAY_DRAG * dt);
+      fall.x += fall.vx * dt;
+      fall.y += fall.vy * dt;
+      fall.z += fall.vz * dt;
+      fall.rx = ROCK.amp * Math.sin(t * ROCK.rate) * on;
+      fall.ry += sim.side * TUMBLE * on * dt;
+      fall.rz += sim.side * SPIN * dt;
+      fall.tip *= Math.exp(-2 * dt);
+      fall.bend = [(0.32 + 0.16 * Math.sin(t * 7.3)) * on, 0.14 * Math.sin(t * 5.1 + 1) * on];
+      fall.flutter = 0.6 + 0.6 * on;
+      const size = Math.hypot(halfSize.x, halfSize.y) * 2;
+      if (sim.restPos.y + fall.y * pxToWorld < -viewHeight / 2 - size) go(sim, "gone");
+      break;
+    }
+    case "gone": {
+      mesh.visible = false;
+      if (t >= GONE_MS / 1000) {
+        mesh.visible = true;
+        sim.peel = 0;
+        go(sim, "rest");
+        playPreset(sim, "slap");
+        return false;
+      }
+      break;
+    }
+  }
+
+  // Pose: its frozen place, then the fall's offset, turns and the tip about the lifted edge.
+  mesh.position
+    .copy(sim.restPos)
+    .add(hit.set(fall.x * pxToWorld, fall.y * pxToWorld, fall.z * pxToWorld));
+  tipAxis.set(-Math.sin(sim.peelAngle), Math.cos(sim.peelAngle), 0);
+  mesh.quaternion
+    .copy(sim.restQuat)
+    .multiply(qa.setFromAxisAngle(axisZ, fall.rz))
+    .multiply(qb.setFromAxisAngle(axisY, fall.ry))
+    .multiply(qa.setFromAxisAngle(axisX, fall.rx))
+    .multiply(qb.setFromAxisAngle(tipAxis, -fall.tip));
+  sim.prevRot.copy(mesh.rotation);
+
+  const u = material.uniforms;
+  u.uPeel.value = sim.peel;
+  u.uPeelAngle.value = sim.peelAngle;
+  u.uBendX.value = fall.bend[0] / halfSize.x;
+  u.uBendY.value = fall.bend[1] / halfSize.y;
+  u.uFlutter.value = fall.flutter * Math.min(halfSize.x, halfSize.y) * 1.6;
+  u.uTime.value = time;
+  sim.bendX = u.uBendX.value;
+  sim.bendY = u.uBendY.value;
+  return (sim.phase as Phase) !== "rest";
+}
 
 const raycaster = new THREE.Raycaster();
 const plane = new THREE.Plane();
@@ -226,8 +525,13 @@ function stepSim(
   dt: number,
   curl: number,
   halfSize: THREE.Vector2,
+  pxToWorld: number,
+  viewHeight: number,
 ) {
+  if (stepPeel(sim, mesh, material, camera, time, dt, halfSize, pxToWorld, viewHeight)) return;
   const f = Math.min(dt * 60, 3);
+  sim.idleT += dt;
+  const idle = sim.idleT;
 
   // Drag rotation springs home when released.
   if (!sim.dragging) {
@@ -237,16 +541,16 @@ function stepSim(
     sim.user.addScaledVector(sim.userVel, f);
   }
 
-  const idleY = Math.sin(time * 0.6) * 0.16;
-  const idleX = Math.sin(time * 0.43) * 0.07;
+  const idleY = Math.sin(idle * 0.6) * 0.16;
+  const idleX = Math.sin(idle * 0.43) * 0.07;
   mesh.rotation.set(
     sim.user.x + idleX + sim.animRotX,
     sim.user.y + idleY + sim.animRotY,
-    sim.animRotZ + Math.sin(time * 0.31) * 0.02,
+    sim.animRotZ + Math.sin(idle * 0.31) * 0.02,
   );
   mesh.position.set(
     sim.animX,
-    sim.animY + Math.sin(time * 0.9) * 0.04,
+    sim.animY + Math.sin(idle * 0.9) * 0.04,
     sim.animZ,
   );
 
@@ -309,7 +613,7 @@ function dragSim(sim: Sim, dx: number, dy: number) {
 
 type Preset = "slap" | "toss" | "flip" | "peel";
 
-function playPreset(sim: Sim, preset: Preset, halfSize: THREE.Vector2) {
+function playPreset(sim: Sim, preset: Preset) {
   gsap.killTweensOf(sim);
   const reset = {
     animX: 0,
@@ -363,11 +667,8 @@ function playPreset(sim: Sim, preset: Preset, halfSize: THREE.Vector2) {
       ease: "power3.inOut",
     });
   } else {
-    sim.animPeelAngle = Math.atan2(-halfSize.y, halfSize.x);
-    gsap
-      .timeline()
-      .to(sim, { animPeel: 0.95, duration: 1.3, ease: "power2.inOut" })
-      .to(sim, { animPeel: 0, duration: 0.9, ease: "back.out(1.6)" }, "+=0.35");
+    // Peels off by its top-right corner and falls, then slaps back (stepPeel).
+    sim.autoPeel = true;
   }
 }
 
@@ -432,6 +733,11 @@ function StickerMesh({
   }, [finish, uniforms]);
 
   useFrame((state, delta) => {
+    // World units per CSS px at the sticker's depth, for the fall's px constants.
+    const cam = state.camera as THREE.PerspectiveCamera;
+    const viewHeight =
+      2 * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2) * cam.position.z;
+    const pxToWorld = viewHeight / state.size.height;
     if (meshRef.current && materialRef.current)
       stepSim(
         simRef.current,
@@ -442,6 +748,8 @@ function StickerMesh({
         delta,
         curl,
         halfSizeRef.current,
+        pxToWorld,
+        viewHeight,
       );
   });
 
@@ -643,7 +951,7 @@ export default function StickerMaker() {
         if (!file) return;
         setTransferError(null);
         setSource({ kind: "file", file, name: file.name || "pasted image" });
-        playPreset(simRef.current, "slap", halfSizeRef.current);
+        playPreset(simRef.current, "slap");
       } catch {
         setTransferError(
           "That site blocks copying its image. Save it, then drop the file.",
@@ -700,7 +1008,7 @@ export default function StickerMaker() {
     if (!file || !isImageFile(file)) return;
     setTransferError(null);
     setSource({ kind: "file", file, name: file.name });
-    playPreset(simRef.current, "slap", halfSizeRef.current);
+    playPreset(simRef.current, "slap");
   };
 
   const download = () => {
@@ -776,19 +1084,25 @@ export default function StickerMaker() {
           onPointerLeave={() => (simRef.current.hovering = false)}
           onPointerDown={(e) => {
             (e.target as HTMLElement).setPointerCapture(e.pointerId);
+            ndc(e);
             dragRef.current = { x: e.clientX, y: e.clientY };
-            simRef.current.dragging = true;
+            // Resolved next frame against the sticker: an edge grab peels, the middle spins.
+            simRef.current.press = "pending";
           }}
           onPointerMove={(e) => {
             ndc(e);
             const d = dragRef.current;
             if (!d) return;
-            dragSim(simRef.current, e.clientX - d.x, e.clientY - d.y);
+            if (simRef.current.dragging)
+              dragSim(simRef.current, e.clientX - d.x, e.clientY - d.y);
             dragRef.current = { x: e.clientX, y: e.clientY };
           }}
           onPointerUp={() => {
             dragRef.current = null;
-            simRef.current.dragging = false;
+            const sim = simRef.current;
+            sim.dragging = false;
+            if (sim.press !== "none") sim.released = true;
+            sim.press = "none";
           }}
         >
           <Canvas
@@ -870,7 +1184,7 @@ export default function StickerMaker() {
               type="button"
               onClick={() => {
                 setSource({ kind: "url", url: s.url, name: s.name });
-                playPreset(simRef.current, "slap", halfSizeRef.current);
+                playPreset(simRef.current, "slap");
               }}
               className="flex-1 rounded-lg bg-white/5 py-1.5 text-xs text-white/80 hover:bg-white/10"
             >
@@ -1042,7 +1356,7 @@ export default function StickerMaker() {
                     key={p}
                     type="button"
                     onClick={() =>
-                      playPreset(simRef.current, p, halfSizeRef.current)
+                      playPreset(simRef.current, p)
                     }
                     className="rounded-lg bg-white/5 py-1.5 text-xs capitalize text-white/80 hover:bg-white/10"
                   >
@@ -1051,7 +1365,7 @@ export default function StickerMaker() {
                 ))}
               </div>
               <p className="text-[11px] text-white/40">
-                Drag to spin. Hover an edge to peel it.
+                Grab an edge and pull to peel. Let go to send it flying. Drag the middle to spin.
               </p>
             </div>
           </>
