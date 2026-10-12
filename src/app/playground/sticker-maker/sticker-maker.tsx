@@ -6,8 +6,8 @@
  * knock-out) is built on the CPU in ./make-sticker.ts; the paper feel is a vertex shader on a
  * dense plane, the same technique as the repo's bend-mouse-follower, extended with:
  *  - two cylindrical bends driven by angular velocity (air drag curls the edges as it spins),
- *  - a page-curl peel around a moving fold line: hover an edge to lift it, grab an edge and
- *    pull to peel it from any direction, let go and it comes off and falls like paper (the
+ *  - a page-curl peel around a moving fold line: grab an edge and pull to peel it from any
+ *    direction, let go and it comes off and falls like paper (the
  *    peel-and-fall mechanism from GetOn's landing page, see stepPeel),
  *  - a small flutter, and a plain white backing on the reverse side.
  */
@@ -173,7 +173,6 @@ const fragmentShader = /* glsl */ `
 
 type Sim = {
   pointer: THREE.Vector2;
-  hovering: boolean;
   dragging: boolean;
   user: THREE.Vector2; // drag rotation (x = pitch, y = yaw)
   userVel: THREE.Vector2;
@@ -221,7 +220,6 @@ type Phase = "rest" | "peeling" | "unpeel" | "auto" | "lift" | "fall" | "gone";
 
 const createSim = (): Sim => ({
   pointer: new THREE.Vector2(),
-  hovering: false,
   dragging: false,
   user: new THREE.Vector2(),
   userVel: new THREE.Vector2(),
@@ -565,29 +563,7 @@ function stepSim(
   sim.bendY += (targetY - sim.bendY) * Math.min(1, 0.12 * f);
   sim.kick *= Math.pow(0.9, f);
 
-  // Hover peel: lift whichever edge the pointer is near.
-  sim.peelTarget = 0;
-  if (sim.hovering && !sim.dragging) {
-    raycaster.setFromCamera(sim.pointer, camera);
-    normal.set(0, 0, 1).applyQuaternion(mesh.quaternion);
-    plane.setFromNormalAndCoplanarPoint(normal, mesh.position);
-    if (raycaster.ray.intersectPlane(plane, hit)) {
-      mesh.worldToLocal(hit);
-      const angle = Math.atan2(hit.y, hit.x);
-      const dir = new THREE.Vector2(Math.cos(angle), Math.sin(angle));
-      const extent =
-        Math.abs(dir.x) * halfSize.x + Math.abs(dir.y) * halfSize.y;
-      const r = Math.hypot(hit.x, hit.y) / extent;
-      if (r > 0.55 && r < 1.15) {
-        sim.peelTarget = THREE.MathUtils.clamp((r - 0.55) / 0.45, 0, 1) * 0.42;
-        sim.peelAngle +=
-          Math.atan2(
-            Math.sin(angle - sim.peelAngle),
-            Math.cos(angle - sim.peelAngle),
-          ) * Math.min(1, 0.2 * f);
-      }
-    }
-  }
+  sim.peelTarget = 0; // no hover reaction: it only peels when grabbed
   const peelGoal = Math.max(sim.peelTarget, sim.animPeel);
   sim.peel += (peelGoal - sim.peel) * Math.min(1, 0.1 * f);
 
@@ -1080,8 +1056,6 @@ export default function StickerMaker() {
       {mode === "studio" && (
         <div
           className="absolute inset-0 cursor-grab touch-none active:cursor-grabbing"
-          onPointerEnter={() => (simRef.current.hovering = true)}
-          onPointerLeave={() => (simRef.current.hovering = false)}
           onPointerDown={(e) => {
             (e.target as HTMLElement).setPointerCapture(e.pointerId);
             ndc(e);
